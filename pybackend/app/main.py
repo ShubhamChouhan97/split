@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, groups, expenses, settlements
+from .routers import auth, groups, expenses, settlements, activity
 import os
 
 app = FastAPI(title="Splitwise-like API")
@@ -22,6 +22,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(groups.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
 app.include_router(settlements.router, prefix="/api")
+app.include_router(activity.router, prefix="/api")
 
 @app.get("/")
 async def root():

@@ -164,3 +164,8 @@ export const settlementsApi = {
 export const userApi = {
   getMe: () => apiRequest<User>("/api/auth/me"),
 };
+
+// Activity API
+export const activityApi = {
+  getRecent: () => apiRequest<any[]>("/api/activity"),
+};

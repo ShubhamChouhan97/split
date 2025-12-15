@@ -1,6 +1,15 @@
-import { recentActivity } from "@/data/mockData";
-import { Receipt, Handshake, Users, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Receipt, Handshake, Users, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { activityApi } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+
+interface Activity {
+  id: string;
+  type: string;
+  description: string;
+  time: string;
+}
 
 const getActivityIcon = (type: string) => {
   switch (type) {
@@ -29,9 +38,48 @@ const getActivityColor = (type: string) => {
 };
 
 export const ActivityFeed = () => {
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        const recentActivities = await activityApi.getRecent();
+        setActivities(recentActivities);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load recent activity.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivities();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No recent activity.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {recentActivity.map((activity, index) => {
+      {activities.map((activity, index) => {
         const Icon = getActivityIcon(activity.type);
         const colorClass = getActivityColor(activity.type);
         
@@ -46,7 +94,7 @@ export const ActivityFeed = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-foreground">{activity.description}</p>
-              <p className="text-xs text-muted-foreground">{activity.time}</p>
+              <p className="text-xs text-muted-foreground">{new Date(activity.time).toLocaleString()}</p>
             </div>
           </div>
         );

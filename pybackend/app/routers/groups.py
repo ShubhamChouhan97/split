@@ -25,7 +25,7 @@ async def create_group_route(body: GroupCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Group name is required")
 
     # Add current user to members list if not already there
-    user_email = user.get("email")
+    user_email = user.email
     if user_email not in body.members:
         body.members.append(user_email)
 
@@ -44,7 +44,7 @@ async def create_group_route(body: GroupCreate, user=Depends(get_current_user)):
 
 @router.get("/groups")
 async def get_all_groups_route(user=Depends(get_current_user)):
-    user_email = user.get("email")
+    user_email = user.email
     group_list = []
     
     # Query for groups where the current user's email is in the 'members' array
@@ -104,14 +104,19 @@ async def get_group_route(group_id: str, user=Depends(get_current_user)):
     expenses = await list_expenses_by_group(group_id)
     balances = defaultdict(float)
 
-    for expense in expenses:
-        paid_by_id = str(expense['paidBy'])
-        amount = expense['amount']
-        balances[paid_by_id] += amount
-        for split in expense['splits']:
-            user_id = str(split['userId'])
-            split_amount = split['amount']
-            balances[user_id] -= split_amount
+    for exp in expenses:
+        paid_by = str(exp['paidBy'])
+        splits = exp.get('splits', [])
+        if splits:
+            for s in splits:
+                uid = str(s['userId'])
+                amt = float(s['amount'])
+                if uid == paid_by:
+                    # if paid_by is also part of split, their own share reduces net owed amount
+                    balances[paid_by] += (float(exp['amount']) - amt)
+                else:
+                    balances[paid_by] += amt
+                    balances[uid] -= amt
 
     # Create list of balances in the required format
     grp['balances'] = [{"userId": uid, "amount": amt} for uid, amt in balances.items()]
