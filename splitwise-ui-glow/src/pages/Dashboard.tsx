@@ -1,27 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { GroupCard } from "@/components/GroupCard";
 import { BalanceSummary } from "@/components/BalanceSummary";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { Button } from "@/components/ui/button";
-import { groups, getTotalBalance, User } from "@/data/mockData";
-import { Plus, Users, TrendingUp } from "lucide-react";
+import { Plus, Users, TrendingUp, Loader2 } from "lucide-react";
+import { groupsApi, Group } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [localGroups, setLocalGroups] = useState(groups);
-  const { owed, owes } = getTotalBalance();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [owed, setOwed] = useState(0);
+  const [owes, setOwes] = useState(0);
 
-  const handleCreateGroup = (name: string, members: User[]) => {
-    const newGroup = {
-      id: `g${localGroups.length + 1}`,
-      name,
-      members,
-      totalExpenses: 0,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setLocalGroups([newGroup, ...localGroups]);
+  const fetchGroups = async () => {
+    try {
+      setLoading(true);
+      const data = await groupsApi.getAll();
+      setGroups(data);
+      console.log("ss",data);
+      // TODO: Calculate balances from backend when endpoint is available
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load groups",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  const handleCreateGroup = async (name: string, memberIds: string[]) => {
+    try {
+      const newGroup = await groupsApi.create({ name, members: memberIds });
+      setGroups([newGroup, ...groups]);
+      toast({
+        title: "Group created!",
+        description: `"${name}" has been created successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create group",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -55,13 +86,22 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold text-foreground">Your Groups</h2>
             </div>
             
-            {localGroups.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : groups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {localGroups.map((group, index) => (
-                  <div key={group.id} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
-                    <GroupCard group={group} />
-                  </div>
-                ))}
+                {groups.map((group, index) => (
+  <div
+    key={group.id}
+    className="animate-fade-in"
+    style={{ animationDelay: `${index * 100}ms` }}
+  >
+    <GroupCard group={group} />
+  </div>
+))}
+
               </div>
             ) : (
               <div className="bg-card rounded-xl border border-border p-8 text-center">

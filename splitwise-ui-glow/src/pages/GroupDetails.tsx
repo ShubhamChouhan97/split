@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { ExpenseCard } from "@/components/ExpenseCard";
@@ -7,14 +7,9 @@ import { SettleUpModal } from "@/components/SettleUpModal";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  getGroupById,
-  getExpensesByGroupId,
-  calculateBalances,
-  getUserById,
-  currentUser,
-  Expense,
-} from "@/data/mockData";
+import { groupsApi, expensesApi, settlementsApi, Group, Expense, Balance, Debt } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContexts";
+import { toast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   Plus,
@@ -23,15 +18,59 @@ import {
   Scale,
   Clock,
   Users,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const GroupDetails = () => {
   const { id } = useParams<{ id: string }>();
-  const group = getGroupById(id || "");
-  const [expenses, setExpenses] = useState<Expense[]>(getExpensesByGroupId(id || ""));
+  const { user } = useAuth();
+  const [group, setGroup] = useState<Group | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [balances, setBalances] = useState<Balance[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showSettleUp, setShowSettleUp] = useState(false);
+
+  const fetchGroupData = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      const [groupData, expensesData] = await Promise.all([
+        groupsApi.getById(id),
+        expensesApi.getByGroupId(id),
+      ]);
+      setGroup(groupData);
+      setExpenses(expensesData);
+      setBalances(groupData.balances || []);
+      setDebts(groupData.debts || []);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load group data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroupData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-16 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   if (!group) {
     return (
@@ -50,42 +89,79 @@ const GroupDetails = () => {
     );
   }
 
-  const balances = calculateBalances(group.id);
-
-  const handleAddExpense = (expense: {
+  const handleAddExpense = async (expense: {
     description: string;
     amount: number;
     paidBy: string;
     splitBetween: string[];
   }) => {
-    const newExpense: Expense = {
-      id: `e${Date.now()}`,
-      groupId: group.id,
-      paidBy: expense.paidBy,
-      amount: expense.amount,
-      description: expense.description,
-      splits: expense.splitBetween.map((userId) => ({
+    try {
+      const splits = expense.splitBetween.map((userId) => ({
         userId,
         amount: expense.amount / expense.splitBetween.length,
-      })),
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setExpenses([newExpense, ...expenses]);
+      }));
+
+      await expensesApi.create({
+        groupId: group.id,
+        description: expense.description,
+        amount: expense.amount,
+        paidBy: expense.paidBy,
+        splits,
+      });
+
+      setShowAddExpense(false);
+      // Refresh all data to update expenses, balances, and group totals
+      await fetchGroupData();
+
+      toast({
+        title: "Expense added!",
+        description: `$${expense.amount} for "${expense.description}" has been recorded.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add expense",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSettle = (payerId: string, receiverId: string, amount: number) => {
-    console.log("Settlement:", { payerId, receiverId, amount });
+  const handleSettle = async (payerId: string, receiverId: string, amount: number) => {
+    try {
+      await settlementsApi.create({
+        groupId: group.id,
+        payerId,
+        receiverId,
+        amount,
+      });
+
+      // Refresh all data to update balances
+      await fetchGroupData();
+
+      toast({
+        title: "Settlement recorded!",
+        description: `Payment of $${amount} has been recorded.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record settlement",
+        variant: "destructive",
+      });
+    }
   };
 
-  const activityLog = expenses.map((e) => {
-    const payer = getUserById(e.paidBy);
-    return {
-      id: e.id,
-      description: `${payer?.name} added "${e.description}"`,
-      amount: e.amount,
-      date: e.createdAt,
-    };
-  });
+  const getMemberName = (userId: string) => {
+    const member = group.members.find((m) => m.id === userId);
+    return member?.name || "Unknown";
+  };
+
+  const activityLog = expenses.map((e) => ({
+    id: e.id,
+    description: `${getMemberName(e.paidBy)} added "${e.description}"`,
+    amount: Number(e.amount ?? 0),
+    date: e.createdAt,
+  }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -158,7 +234,7 @@ const GroupDetails = () => {
             {expenses.length > 0 ? (
               expenses.map((expense, index) => (
                 <div key={expense.id} style={{ animationDelay: `${index * 50}ms` }}>
-                  <ExpenseCard expense={expense} />
+                  <ExpenseCard expense={expense} members={group.members || []} />
                 </div>
               ))
             ) : (
@@ -183,38 +259,40 @@ const GroupDetails = () => {
             <div className="bg-card rounded-xl border border-border p-6">
               <h3 className="font-semibold text-foreground mb-4">Who owes what</h3>
               <div className="space-y-3">
-                {balances.map((balance) => {
-                  const user = getUserById(balance.userId);
-                  if (!user) return null;
-                  return (
-                    <div
-                      key={balance.userId}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <UserAvatar name={user.name} size="sm" />
-                        <span className="font-medium">
-                          {user.name}
-                          {user.id === currentUser.id && (
-                            <span className="text-muted-foreground"> (you)</span>
-                          )}
+                {debts.length > 0 ? (
+                  debts.map((debt, index) => {
+                    const fromUser = group.members.find((m) => m.id === debt.from);
+                    const toUser = group.members.find((m) => m.id === debt.to);
+                    
+                    if (!fromUser || !toUser) return null;
+
+                    return (
+                      <div
+                        key={`${debt.from}-${debt.to}-${index}`}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <UserAvatar name={fromUser.name} size="sm" />
+                          <span className="font-medium">
+                            {fromUser.name}
+                            {user?.id === fromUser.id && <span className="text-muted-foreground"> (you)</span>}
+                          </span>
+                          <span className="text-muted-foreground text-sm">owes</span>
+                          <UserAvatar name={toUser.name} size="sm" />
+                          <span className="font-medium">
+                            {toUser.name}
+                            {user?.id === toUser.id && <span className="text-muted-foreground"> (you)</span>}
+                          </span>
+                        </div>
+                        <span className="font-semibold text-destructive">
+                          ${debt.amount.toFixed(2)}
                         </span>
                       </div>
-                      <span
-                        className={cn(
-                          "font-semibold",
-                          balance.amount > 0
-                            ? "text-success"
-                            : balance.amount < 0
-                            ? "text-destructive"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {balance.amount > 0 ? "+" : ""}${balance.amount.toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">Everything is settled up!</p>
+                )}
               </div>
 
               {balances.some((b) => b.amount !== 0) && (
@@ -274,7 +352,7 @@ const GroupDetails = () => {
         onOpenChange={setShowSettleUp}
         balances={balances}
         members={group.members}
-        currentUserId={currentUser.id}
+        currentUserId={user?.id || ""}
         onSettle={handleSettle}
       />
     </div>

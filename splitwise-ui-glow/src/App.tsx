@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
+import Groups from "./pages/Groups";
 import GroupDetails from "./pages/GroupDetails";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -31,6 +32,7 @@ const App = () => (
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/groups" element={<Groups />} />
             <Route path="/group/:id" element={<GroupDetails />} />
             <Route path="/profile" element={<Profile />} />
           </Route>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User } from "@/data/mockData";
+import { User } from "@/lib/api";
 import { Receipt, DollarSign } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -21,8 +21,9 @@ export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpen
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState("");
   const [splitBetween, setSplitBetween] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!description || !amount || !paidBy || splitBetween.length === 0) {
@@ -34,23 +35,23 @@ export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpen
       return;
     }
 
-    onAdd({
-      description,
-      amount: parseFloat(amount),
-      paidBy,
-      splitBetween,
-    });
+    setIsSubmitting(true);
+    try {
+      await onAdd({
+        description,
+        amount: parseFloat(amount),
+        paidBy,
+        splitBetween,
+      });
 
-    setDescription("");
-    setAmount("");
-    setPaidBy("");
-    setSplitBetween([]);
-    onOpenChange(false);
-
-    toast({
-      title: "Expense added!",
-      description: `$${amount} for "${description}" has been recorded.`,
-    });
+      setDescription("");
+      setAmount("");
+      setPaidBy("");
+      setSplitBetween([]);
+      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const toggleMember = (memberId: string) => {
@@ -162,8 +163,8 @@ export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpen
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="gradient" className="flex-1">
-              Add Expense
+            <Button type="submit" variant="gradient" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Expense"}
             </Button>
           </div>
         </form>

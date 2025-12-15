@@ -1,19 +1,28 @@
-import { Expense, getUserById, currentUser } from "@/data/mockData";
+import { Expense, User } from "@/lib/api";
 import { UserAvatar } from "./UserAvatar";
+import { useAuth } from "@/contexts/AuthContexts";
 import { Receipt } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface ExpenseCardProps {
   expense: Expense;
+  members?: User[];
 }
 
-export const ExpenseCard = ({ expense }: ExpenseCardProps) => {
-  const payer = getUserById(expense.paidBy);
-  const userSplit = expense.splits.find((s) => s.userId === currentUser.id);
-  const isPayer = expense.paidBy === currentUser.id;
+export const ExpenseCard = ({ expense, members = [] }: ExpenseCardProps) => {
+  const { user } = useAuth();
+  const currentUserId = user?.id || "";
+
+  const getMemberName = (userId: string) => {
+    const member = members.find((m) => m.id === userId);
+    return member?.name || "Unknown";
+  };
+
+  const payer = members.find((m) => m.id === expense.paidBy);
+  const userSplit = (expense.splits || []).find((s) => s.userId === currentUserId);
+  const isPayer = expense.paidBy === currentUserId;
   
-  const userOwes = userSplit && !isPayer ? userSplit.amount : 0;
-  const userIsOwed = isPayer ? expense.amount - (userSplit?.amount || 0) : 0;
+  const userOwes = userSplit && !isPayer ? Number(userSplit.amount ?? 0) : 0;
+  const userIsOwed = isPayer ? Number(expense.amount ?? 0) - Number(userSplit?.amount ?? 0) : 0;
 
   return (
     <div className="bg-card rounded-xl border border-border p-4 hover:shadow-md transition-shadow animate-fade-in">
@@ -27,11 +36,11 @@ export const ExpenseCard = ({ expense }: ExpenseCardProps) => {
             <div className="min-w-0">
               <h4 className="font-medium text-foreground truncate">{expense.description}</h4>
               <p className="text-sm text-muted-foreground">
-                Paid by {payer?.name || "Unknown"}
+                Paid by {payer?.name || getMemberName(expense.paidBy)}
               </p>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="font-semibold text-foreground">${expense.amount.toFixed(2)}</p>
+              <p className="font-semibold text-foreground">${Number(expense.amount ?? 0).toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">
                 {new Date(expense.createdAt).toLocaleDateString()}
               </p>

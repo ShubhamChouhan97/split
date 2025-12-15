@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Balance, getUserById } from "@/data/mockData";
+import { User, Balance } from "@/lib/api";
 import { UserAvatar } from "./UserAvatar";
 import { ArrowRight, DollarSign, Handshake } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -30,11 +30,14 @@ export const SettleUpModal = ({
   const [selectedPayer, setSelectedPayer] = useState("");
   const [selectedReceiver, setSelectedReceiver] = useState("");
   const [amount, setAmount] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const debtors = balances.filter((b) => b.amount < 0);
-  const creditors = balances.filter((b) => b.amount > 0);
+  const getMemberName = (userId: string) => {
+    const member = members.find((m) => m.id === userId);
+    return member?.name || "Unknown";
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedPayer || !selectedReceiver || !amount) {
@@ -46,17 +49,16 @@ export const SettleUpModal = ({
       return;
     }
 
-    onSettle(selectedPayer, selectedReceiver, parseFloat(amount));
-    
-    setSelectedPayer("");
-    setSelectedReceiver("");
-    setAmount("");
-    onOpenChange(false);
-
-    toast({
-      title: "Settlement recorded!",
-      description: `Payment of $${amount} has been recorded.`,
-    });
+    setIsSubmitting(true);
+    try {
+      await onSettle(selectedPayer, selectedReceiver, parseFloat(amount));
+      setSelectedPayer("");
+      setSelectedReceiver("");
+      setAmount("");
+      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getSuggestedAmount = () => {
@@ -88,16 +90,16 @@ export const SettleUpModal = ({
           <p className="text-sm font-medium text-muted-foreground">Current Balances</p>
           <div className="space-y-2">
             {balances.map((balance) => {
-              const user = getUserById(balance.userId);
-              if (!user || balance.amount === 0) return null;
+              const member = members.find((m) => m.id === balance.userId);
+              if (!member || balance.amount === 0) return null;
               return (
                 <div
                   key={balance.userId}
                   className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                 >
                   <div className="flex items-center gap-2">
-                    <UserAvatar name={user.name} size="sm" />
-                    <span className="text-sm">{user.name}</span>
+                    <UserAvatar name={member.name} size="sm" />
+                    <span className="text-sm">{member.name}</span>
                   </div>
                   <span
                     className={cn(
@@ -184,8 +186,8 @@ export const SettleUpModal = ({
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="success" className="flex-1">
-              Record Payment
+            <Button type="submit" variant="success" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? "Recording..." : "Record Payment"}
             </Button>
           </div>
         </form>

@@ -1,17 +1,14 @@
 import { Link } from "react-router-dom";
-import { Group, calculateBalances, currentUser } from "@/data/mockData";
+import { Group, User } from "@/lib/api";
 import { UserAvatar } from "./UserAvatar";
 import { Users, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface GroupCardProps {
   group: Group;
 }
 
 export const GroupCard = ({ group }: GroupCardProps) => {
-  const balances = calculateBalances(group.id);
-  const userBalance = balances.find((b) => b.userId === currentUser.id);
-  const balance = userBalance?.amount || 0;
+  const members = Array.isArray(group.members) ? group.members : [];
 
   return (
     <Link to={`/group/${group.id}`}>
@@ -26,7 +23,7 @@ export const GroupCard = ({ group }: GroupCardProps) => {
                 {group.name}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {group.members.length} members
+                {members.length} members
               </p>
             </div>
           </div>
@@ -35,27 +32,35 @@ export const GroupCard = ({ group }: GroupCardProps) => {
 
         <div className="mt-4 flex items-center justify-between">
           <div className="flex -space-x-2">
-            {group.members.slice(0, 4).map((member) => (
-              <UserAvatar key={member.id} name={member.name} size="sm" className="ring-2 ring-card" />
-            ))}
-            {group.members.length > 4 && (
+            {members.slice(0, 4).map((member: string | User) => {
+              const memberName = typeof member === "string" ? "User" : member.name;
+              const memberId = typeof member === "string" ? member : member.id;
+
+              return (
+                <UserAvatar
+                  key={memberId}
+                  name={memberName}
+                  size="sm"
+                  className="ring-2 ring-card"
+                />
+              );
+            })}
+
+            {members.length > 4 && (
               <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium ring-2 ring-card">
-                +{group.members.length - 4}
+                +{members.length - 4}
               </div>
             )}
           </div>
 
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Your balance</p>
-            <p
-              className={cn(
-                "font-semibold",
-                balance > 0 ? "text-success" : balance < 0 ? "text-destructive" : "text-muted-foreground"
-              )}
-            >
-              {balance > 0 ? "+" : ""}${Math.abs(balance).toFixed(2)}
-            </p>
-          </div>
+          {group.totalExpenses !== undefined && group.totalExpenses > 0 && (
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Total expenses</p>
+              <p className="font-semibold text-foreground">
+                ${Number(group.totalExpenses).toFixed(2)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </Link>
