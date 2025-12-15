@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from ..schemas.expense_schema import ExpenseCreate
 from ..models.expense import create_expense, list_by_group
+from ..models.user import find_by_id
 from .auth import get_current_user
 from datetime import datetime
 
@@ -31,5 +32,14 @@ async def list_expenses(group_id: str, user=Depends(get_current_user)):
     for it in items:
         it['id'] = str(it['_id'])
         it.pop('_id', None)
+        # Populate paidByName
+        payer = await find_by_id(it['paidBy'])
+        it['paidByName'] = payer['name'] if payer else 'Unknown'
+        # Populate userName in splits
+        for split in it['splits']:
+            split_user = await find_by_id(split['userId'])
+            split['userName'] = split_user['name'] if split_user else 'Unknown'
+        # Set createdAt
+        it['createdAt'] = it['date'].isoformat() if 'date' in it and it['date'] else ''
         out.append(it)
     return out

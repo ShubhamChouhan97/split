@@ -16,12 +16,23 @@ interface AddExpenseModalProps {
   onAdd: (expense: { description: string; amount: number; paidBy: string; splitBetween: string[] }) => void;
 }
 
-export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpenseModalProps) => {
+export const AddExpenseModal = ({ open, onOpenChange, members = [], onAdd }: AddExpenseModalProps) => {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState("");
   const [splitBetween, setSplitBetween] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getMemberName = (member: User) => {
+    if (!member) return "Unknown Member";
+    const m = member as any;
+    if (typeof m === 'string') return "Member";
+
+    // Handle various potential database field names for the user's name
+    return m.name || m.fullName || m.full_name || 
+      (m.firstName ? `${m.firstName} ${m.lastName || ''}`.trim() : '') || 
+      m.username || m.email || "Member";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +126,7 @@ export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpen
               <SelectContent>
                 {members.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
-                    {member.name}
+                    {getMemberName(member)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -130,6 +141,9 @@ export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpen
               </Button>
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto p-2 bg-muted/50 rounded-lg">
+              {members.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">No members available</p>
+              )}
               {members.map((member) => (
                 <div key={member.id} className="flex items-center gap-2">
                   <Checkbox
@@ -141,7 +155,7 @@ export const AddExpenseModal = ({ open, onOpenChange, members, onAdd }: AddExpen
                     htmlFor={`member-${member.id}`}
                     className="text-sm cursor-pointer flex-1"
                   >
-                    {member.name}
+                    {getMemberName(member)}
                   </label>
                 </div>
               ))}

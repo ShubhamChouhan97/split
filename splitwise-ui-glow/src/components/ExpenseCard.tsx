@@ -17,10 +17,8 @@ export const ExpenseCard = ({ expense, members = [] }: ExpenseCardProps) => {
     return member?.name || "Unknown";
   };
 
-  const payer = members.find((m) => m.id === expense.paidBy);
   const userSplit = (expense.splits || []).find((s) => s.userId === currentUserId);
   const isPayer = expense.paidBy === currentUserId;
-  
   const userOwes = userSplit && !isPayer ? Number(userSplit.amount ?? 0) : 0;
   const userIsOwed = isPayer ? Number(expense.amount ?? 0) - Number(userSplit?.amount ?? 0) : 0;
 
@@ -36,7 +34,7 @@ export const ExpenseCard = ({ expense, members = [] }: ExpenseCardProps) => {
             <div className="min-w-0">
               <h4 className="font-medium text-foreground truncate">{expense.description}</h4>
               <p className="text-sm text-muted-foreground">
-                Paid by {payer?.name || getMemberName(expense.paidBy)}
+                Paid by {expense.paidByName}
               </p>
             </div>
             <div className="text-right flex-shrink-0">

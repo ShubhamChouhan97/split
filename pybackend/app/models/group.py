@@ -1,6 +1,7 @@
 from typing import List, Optional
 from bson import ObjectId
 from app.db.connection import db  # <<-- important: import the shared db instance
+from app.models.user import find_by_id
 
 groups = db.get_collection("groups")
 
@@ -53,3 +54,18 @@ async def get_groups_for_member(member_id: str) -> List[dict]:
             pass
 
     return res
+
+
+async def get_group_members(gid: str):
+    group = await get_group(gid)
+    if not group:
+        return []
+    member_ids = group.get('members', [])
+    members = []
+    for mid in member_ids:
+        user = await find_by_id(mid)
+        if user:
+            user['id'] = str(user['_id'])
+            user.pop('_id', None)
+            members.append(user)
+    return members

@@ -33,7 +33,7 @@ export const GroupCard = ({ group }: GroupCardProps) => {
         <div className="mt-4 flex items-center justify-between">
           <div className="flex -space-x-2">
             {members.slice(0, 4).map((member: string | User) => {
-              const memberName = typeof member === "string" ? "User" : member.name;
+              const memberName = typeof member === "string" ? "User" : (member.name || "User");
               const memberId = typeof member === "string" ? member : member.id;
 
               return (

@@ -7,6 +7,7 @@ interface UserAvatarProps {
 }
 
 const getInitials = (name: string): string => {
+  if (!name) return "?";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -23,6 +24,7 @@ const getColorFromName = (name: string): string => {
     "bg-success",
     "bg-warning",
   ];
+  if (!name) return colors[0];
   const index = name.charCodeAt(0) % colors.length;
   return colors[index];
 };

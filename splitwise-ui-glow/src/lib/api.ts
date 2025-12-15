@@ -27,6 +27,7 @@ export interface Debt {
 
 export interface Split {
   userId: string;
+  userName: string;
   amount: number;
 }
 
@@ -35,6 +36,7 @@ export interface Expense {
   id: string;
   groupId: string;
   paidBy: string;
+  paidByName: string;
   amount: number;
   description: string;
   splits: Split[];
