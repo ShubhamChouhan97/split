@@ -3,7 +3,7 @@ from asyncio.log import logger
 from fastapi import APIRouter, HTTPException, Depends
 from ..schemas.group_schema import GroupCreate
 from ..models.group import create_group, get_group, groups
-from ..models.user import add_group_to_user, users
+from ..models.user import find_by_email
 from ..models.expense import expenses
 from .auth import get_current_user
 
@@ -61,4 +61,18 @@ async def get_group_route(group_id: str, user=Depends(get_current_user)):
     
     grp['id'] = str(grp['_id'])
     grp.pop('_id', None)
+
+    member_emails = grp.get("members", [])
+    member_details = []
+    for email in member_emails:
+        user_data = await find_by_email(email)
+        if user_data:
+            member_details.append({
+                "id": str(user_data.get("_id")),
+                "email": user_data.get("email"),
+                "name": user_data.get("name")
+            })
+
+    grp["members"] = member_details
+    
     return grp

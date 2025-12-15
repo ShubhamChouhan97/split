@@ -12,7 +12,7 @@ export interface Group {
   _id: string;   
   id: string;              //  backend Mongo ID
   name: string;
-  members?: string[] | User[]; //backend may return IDs or populated users
+  members: User[]; //backend may return IDs or populated users
   totalExpenses?: number;
   balances?: Balance[];
   debts?: Debt[];

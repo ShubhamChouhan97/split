@@ -204,8 +204,8 @@ const GroupDetails = () => {
             <div className="flex flex-wrap gap-3">
               {group.members.map((member) => (
                 <div key={member.id} className="flex items-center gap-2 bg-muted/50 rounded-full pl-1 pr-3 py-1">
-                  <UserAvatar name={member.name} size="sm" />
-                  <span className="text-sm">{member.name}</span>
+                  <UserAvatar name={member.name || member.id} size="sm" />
+                  <span className="text-sm">{member.name || member.id}</span>
                 </div>
               ))}
             </div>
@@ -234,7 +234,7 @@ const GroupDetails = () => {
             {expenses.length > 0 ? (
               expenses.map((expense, index) => (
                 <div key={expense.id} style={{ animationDelay: `${index * 50}ms` }}>
-                  <ExpenseCard expense={expense} members={group.members || []} />
+                  <ExpenseCard expense={expense} members={group.members} />
                 </div>
               ))
             ) : (
