@@ -1,5 +1,4 @@
 import { Expense, User } from "@/lib/api";
-import { UserAvatar } from "./UserAvatar";
 import { useAuth } from "@/contexts/AuthContexts";
 import { Receipt } from "lucide-react";
 

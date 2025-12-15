@@ -1,7 +1,9 @@
 import { cn } from "@/lib/utils";
+import { User } from "@/lib/api";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface UserAvatarProps {
-  name: string;
+  user: User | { name: string; avatar?: string };
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -29,23 +31,26 @@ const getColorFromName = (name: string): string => {
   return colors[index];
 };
 
-export const UserAvatar = ({ name, size = "md", className }: UserAvatarProps) => {
+export const UserAvatar = ({ user, size = "md", className }: UserAvatarProps) => {
   const sizeClasses = {
     sm: "h-8 w-8 text-xs",
     md: "h-10 w-10 text-sm",
     lg: "h-12 w-12 text-base",
   };
 
+  const name = user?.name || '';
+
   return (
-    <div
-      className={cn(
-        "rounded-full flex items-center justify-center font-medium text-primary-foreground shadow-sm",
-        getColorFromName(name),
-        sizeClasses[size],
-        className
-      )}
-    >
-      {getInitials(name)}
-    </div>
+    <Avatar className={cn(sizeClasses[size], className)}>
+      <AvatarImage src={user?.avatar} alt={name} />
+      <AvatarFallback
+        className={cn(
+          "font-medium text-primary-foreground",
+          getColorFromName(name)
+        )}
+      >
+        {getInitials(name)}
+      </AvatarFallback>
+    </Avatar>
   );
 };

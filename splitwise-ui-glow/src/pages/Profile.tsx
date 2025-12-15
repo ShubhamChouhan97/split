@@ -56,7 +56,7 @@ const Profile = () => {
         {/* Profile Header */}
         <div className="bg-card rounded-xl border border-border p-8 mb-8 animate-fade-in">
           <div className="flex flex-col items-center text-center">
-            <UserAvatar name={name} size="lg" className="h-20 w-20 text-2xl mb-4" />
+            <UserAvatar user={{ name: name, avatar: user.avatar }} size="lg" className="h-20 w-20 text-2xl mb-4" />
             <h1 className="text-2xl font-bold text-foreground">{name}</h1>
             <p className="text-muted-foreground">{email}</p>
           </div>

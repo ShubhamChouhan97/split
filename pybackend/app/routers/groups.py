@@ -4,14 +4,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from ..schemas.group_schema import GroupCreate
 from ..models.group import create_group, get_group, groups
 from ..models.user import find_by_email
-from ..models.expense import expenses
+from ..models.expense import list_by_group as list_expenses_by_group
 from .auth import get_current_user
-
+from collections import defaultdict
 
 router = APIRouter(tags=['groups'])
 
 @router.post("/groups")
-async def create_group_route(body: GroupCreate):
+async def create_group_route(body: GroupCreate, user=Depends(get_current_user)):
     """
     Create a new group.
     Expected payload:
@@ -24,29 +24,54 @@ async def create_group_route(body: GroupCreate):
     if not body.name:
         raise HTTPException(status_code=400, detail="Group name is required")
 
+    # Add current user to members list if not already there
+    user_email = user.get("email")
+    if user_email not in body.members:
+        body.members.append(user_email)
+
     group_doc = {
         "name": body.name,
-        "members": body.members  # stored as list of strings (emails)
+        "members": body.members,
+        "createdBy": user_email
     }
 
     group_id = await create_group(group_doc)
 
-    return {
-        "message": "Group created successfully",
-        "group_id": str(group_id), 
-        "data": {
-            "name": body.name,
-            "members": body.members
-        }
-    }
+    # Fetch the created group to return it with populated members
+    new_group = await get_group_route(str(group_id), user)
+
+    return new_group
 
 @router.get("/groups")
-async def get_all_groups_route():
+async def get_all_groups_route(user=Depends(get_current_user)):
+    user_email = user.get("email")
     group_list = []
-
-    async for group in groups.find():
-        group["id"] = str(group["_id"])   # convert ObjectId → string
+    
+    # Query for groups where the current user's email is in the 'members' array
+    query = {"members": user_email}
+    
+    async for group in groups.find(query):
+        group["id"] = str(group["_id"])
         del group["_id"]
+
+        # Calculate total expenses for the group
+        expenses = await list_expenses_by_group(group["id"])
+        total_expenses = sum(exp.get("amount", 0) for exp in expenses)
+        group["totalExpenses"] = total_expenses
+
+        # Populate member details
+        member_emails = group.get("members", [])
+        member_details = []
+        for email in member_emails:
+            user_data = await find_by_email(email)
+            if user_data:
+                member_details.append({
+                    "id": str(user_data.get("_id")),
+                    "email": user_data.get("email"),
+                    "name": user_data.get("name")
+                })
+        group["members"] = member_details
+        
         group_list.append(group)
 
     return group_list
@@ -75,4 +100,58 @@ async def get_group_route(group_id: str, user=Depends(get_current_user)):
 
     grp["members"] = member_details
     
+    # --- Balance and Debt Calculation ---
+    expenses = await list_expenses_by_group(group_id)
+    balances = defaultdict(float)
+
+    for expense in expenses:
+        paid_by_id = str(expense['paidBy'])
+        amount = expense['amount']
+        balances[paid_by_id] += amount
+        for split in expense['splits']:
+            user_id = str(split['userId'])
+            split_amount = split['amount']
+            balances[user_id] -= split_amount
+
+    # Create list of balances in the required format
+    grp['balances'] = [{"userId": uid, "amount": amt} for uid, amt in balances.items()]
+
+    # Debt simplification
+    creditors = {uid: amt for uid, amt in balances.items() if amt > 0}
+    debtors = {uid: amt for uid, amt in balances.items() if amt < 0}
+    
+    debts = []
+    
+    creditor_uids = list(creditors.keys())
+    debtor_uids = list(debtors.keys())
+
+    i = 0
+    j = 0
+    while i < len(creditor_uids) and j < len(debtor_uids):
+        creditor_id = creditor_uids[i]
+        debtor_id = debtor_uids[j]
+        
+        credit = creditors[creditor_id]
+        debt = debtors[debtor_id]
+
+        amount_to_settle = min(credit, -debt)
+
+        if amount_to_settle > 0.01: # Avoid floating point inaccuracies
+            debts.append({
+                "from": debtor_id,
+                "to": creditor_id,
+                "amount": amount_to_settle
+            })
+
+            creditors[creditor_id] -= amount_to_settle
+            debtors[debtor_id] += amount_to_settle
+
+        if abs(creditors[creditor_id]) < 0.01:
+            i += 1
+        if abs(debtors[debtor_id]) < 0.01:
+            j += 1
+            
+    grp['debts'] = debts
+    # --- End Calculation ---
+
     return grp

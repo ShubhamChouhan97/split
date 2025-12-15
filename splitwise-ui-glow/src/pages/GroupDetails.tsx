@@ -204,7 +204,7 @@ const GroupDetails = () => {
             <div className="flex flex-wrap gap-3">
               {group.members.map((member) => (
                 <div key={member.id} className="flex items-center gap-2 bg-muted/50 rounded-full pl-1 pr-3 py-1">
-                  <UserAvatar name={member.name || member.id} size="sm" />
+                  <UserAvatar user={member} size="sm" />
                   <span className="text-sm">{member.name || member.id}</span>
                 </div>
               ))}
@@ -272,13 +272,13 @@ const GroupDetails = () => {
                         className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <UserAvatar name={fromUser.name} size="sm" />
+                          <UserAvatar user={fromUser} size="sm" />
                           <span className="font-medium">
                             {fromUser.name}
                             {user?.id === fromUser.id && <span className="text-muted-foreground"> (you)</span>}
                           </span>
                           <span className="text-muted-foreground text-sm">owes</span>
-                          <UserAvatar name={toUser.name} size="sm" />
+                          <UserAvatar user={toUser} size="sm" />
                           <span className="font-medium">
                             {toUser.name}
                             {user?.id === toUser.id && <span className="text-muted-foreground"> (you)</span>}

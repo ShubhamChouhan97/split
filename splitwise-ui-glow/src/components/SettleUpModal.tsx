@@ -98,7 +98,7 @@ export const SettleUpModal = ({
                   className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                 >
                   <div className="flex items-center gap-2">
-                    <UserAvatar name={member.name} size="sm" />
+                    <UserAvatar user={member} size="sm" />
                     <span className="text-sm">{member.name}</span>
                   </div>
                   <span

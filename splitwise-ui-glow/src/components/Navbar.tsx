@@ -72,7 +72,7 @@ export const Navbar = () => {
               >
                 {/* Use avatar props from user — if your UserAvatar expects src/name adapt accordingly */}
                 <UserAvatar
-                  name={user?.name || "User"}
+                  user={user || { name: "User" }}
                   size="sm"
                 />
               </button>
